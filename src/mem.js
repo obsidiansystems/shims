@@ -212,7 +212,7 @@ function h$initInfoTables ( depth      // depth in the base chain
     function nextIndexed(msg, stack, o) {
         var n = (o === undefined) ? next() : o;
         var i = depth;
-        while(n > stack[i].length) {
+        while(n >= stack[i].length) {
             n -= stack[i].length;
             i--;
             if(i < 0) throw (msg + ": cannot find item " + n + ", stack length: " + stack.length + " depth: " + depth);
@@ -538,7 +538,10 @@ function h$callDynamic(f) {
 
 // slice an array of heap objects
 function h$sliceArray(a, start, n) {
-  return a.slice(start, start+n);
+  var r = a.slice(start, start+n);
+  r.__ghcjsArray = true;
+  r.m = 0;
+  return r;
 }
 
 function h$memcpy() {
@@ -1004,6 +1007,31 @@ function h$wrapBuffer(buf, unalignedOk, offset, length) {
          , f6: (offset%8) ? null : new Float64Array(buf, offset, length >> 3)
          , dv: new DataView(buf, offset, length)
          };
+}
+
+var h$arrayBufferCounter = 0;
+
+function h$arrayBufferId(a) {
+  if (a.__ghcjsArrayBufferId === undefined)
+    a.__ghcjsArrayBufferId = h$arrayBufferCounter++;
+  return a.__ghcjsArrayBufferId;
+}
+
+function h$comparePointer(a1,o1,a2,o2) {
+  if (a1 === null) {
+    return a2 === null ? 0 : -1;
+  } else if (a2 === null) {
+    return 1;
+  }
+  var i1 = h$arrayBufferId(a1.buf);
+  var i2 = h$arrayBufferId(a2.buf);
+  if (i1 === i2) {
+    var bo1 = a1.dv.byteOffset + o1;
+    var bo2 = a2.dv.byteOffset + o2;
+    return bo1 === bo2 ? 0 : (bo1 < bo2 ? -1 : 1);
+  }
+  else
+    return i1 < i2 ? -1 : 1;
 }
 
 /* 
